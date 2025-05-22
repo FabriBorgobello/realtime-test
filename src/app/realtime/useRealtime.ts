@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import {
   RealtimeEvent,
   RealtimeServerEvent,
@@ -14,6 +15,8 @@ export function useRealtime() {
   const mediaStream = useRef<MediaStream | null>(null); // Microphone
   const peerConnection = useRef<RTCPeerConnection | null>(null); // WebRTC
   const dataChannel = useRef<RTCDataChannel | null>(null); // Data channel
+  const ephemeralUserMessageId = useRef<string | null>(null); // Ephemeral message ID for user audio transcript delta
+  const ephemeralAssistantMessageId = useRef<string | null>(null); // Ephemeral message ID for assistant audio transcript delta
 
   const [status, setStatus] = useState<RealtimeStatus>("idle");
   const [events, setEvents] = useState<RealtimeEvent[]>([]);
@@ -28,13 +31,12 @@ export function useRealtime() {
       case "conversation.created":
       case "conversation.item.created":
       case "conversation.item.retrieved":
-      case "conversation.item.input_audio_transcription.delta":
+      case "conversation.item.input_audio_transcription.completed":
       case "conversation.item.input_audio_transcription.failed":
       case "conversation.item.truncated":
       case "conversation.item.deleted":
       case "input_audio_buffer.committed":
       case "input_audio_buffer.cleared":
-      case "input_audio_buffer.speech_started":
       case "input_audio_buffer.speech_stopped":
       case "response.created":
       case "response.done":
@@ -44,7 +46,6 @@ export function useRealtime() {
       case "response.content_part.done":
       case "response.text.delta":
       case "response.text.done":
-      case "response.audio_transcript.delta":
       case "response.audio.delta":
       case "response.audio.done":
       case "response.function_call_arguments.delta":
@@ -56,32 +57,35 @@ export function useRealtime() {
       case "output_audio_buffer.cleared":
         break;
 
-      // Assistant audio transcript done
+      // Transcribing assistant audio
+      case "response.audio_transcript.delta": {
+        const ephemeral = ephemeralAssistantMessageId.current;
+        if (!ephemeral) {
+          createEphemeralMessage("assistant", e.delta);
+        } else {
+          updateEphemeralMessage("assistant", e.delta);
+        }
+        break;
+      }
+
+      // Assistant audio transcribed
       case "response.audio_transcript.done":
-        setConversation((prev) => [
-          ...prev,
-          {
-            id: e.item_id,
-            role: "assistant",
-            status: "final",
-            text: e.transcript,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        deleteEphemeralMessage("assistant", e.transcript);
         break;
 
-      // User audio transcript done
+      // User audio started
+      case "input_audio_buffer.speech_started":
+        createEphemeralMessage("user", "");
+        break;
+
+      // User audio transcribing
+      case "conversation.item.input_audio_transcription.delta":
+        updateEphemeralMessage("user", e.delta);
+        break;
+
+      // User audio transcribed
       case "conversation.item.input_audio_transcription.completed":
-        setConversation((prev) => [
-          ...prev,
-          {
-            id: e.item_id,
-            role: "user",
-            status: "final",
-            text: e.transcript,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        deleteEphemeralMessage("user", e.transcript);
         break;
 
       default:
@@ -91,6 +95,72 @@ export function useRealtime() {
 
     // Update event history
     setEvents((prev) => [...prev, e]);
+  }
+
+  async function createEphemeralMessage(
+    role: UIMessage["role"],
+    text: UIMessage["text"]
+  ) {
+    const id = uuidv4();
+    if (role === "user") {
+      ephemeralUserMessageId.current = id;
+    } else {
+      ephemeralAssistantMessageId.current = id;
+    }
+    const message: UIMessage = {
+      id,
+      role,
+      status: role === "user" ? "speaking" : "processing",
+      text,
+      timestamp: new Date().toISOString(),
+    };
+    setConversation((prev) => [
+      ...prev.filter((m) => m.role !== role || m.text !== ""), // Remove empty messages of same role
+      message,
+    ]);
+  }
+
+  async function updateEphemeralMessage(
+    role: UIMessage["role"],
+    text: UIMessage["text"]
+  ) {
+    const ephemeral =
+      role === "user"
+        ? ephemeralUserMessageId.current
+        : ephemeralAssistantMessageId.current;
+    if (ephemeral) {
+      setConversation((prev) =>
+        prev.map((message) =>
+          message.id === ephemeral
+            ? { ...message, text: message.text + text }
+            : message
+        )
+      );
+    }
+  }
+
+  async function deleteEphemeralMessage(
+    role: UIMessage["role"],
+    text: UIMessage["text"]
+  ) {
+    const ephemeral =
+      role === "user"
+        ? ephemeralUserMessageId.current
+        : ephemeralAssistantMessageId.current;
+    if (ephemeral) {
+      setConversation((prev) =>
+        prev.map((message) =>
+          message.id === ephemeral
+            ? { ...message, status: "final", text }
+            : message
+        )
+      );
+      if (role === "user") {
+        ephemeralUserMessageId.current = null;
+      } else {
+        ephemeralAssistantMessageId.current = null;
+      }
+    }
   }
 
   async function connect() {
@@ -129,7 +199,7 @@ export function useRealtime() {
           session: {
             instructions: SYSTEM_PROMPT,
             modalities: ["text", "audio"],
-            input_audio_transcription: { model: "whisper-1" },
+            input_audio_transcription: { model: "gpt-4o-transcribe" },
             input_audio_noise_reduction: { type: "near_field" },
             tools: [],
             temperature: 0.6,

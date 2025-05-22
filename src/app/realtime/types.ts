@@ -62,10 +62,21 @@ export type RealtimeServerEvent =
       event_id: string;
       type: Exclude<
         RealtimeServerEventType,
+        | "response.audio_transcript.delta"
         | "response.audio_transcript.done"
+        | "conversation.item.input_audio_transcription.delta"
         | "conversation.item.input_audio_transcription.completed"
       >;
       [key: string]: unknown;
+    }
+  | {
+      event_id: string;
+      type: "response.audio_transcript.delta";
+      response_id: string;
+      item_id: string;
+      output_index: number;
+      content_index: number;
+      delta: string;
     }
   | {
       event_id: string;
@@ -75,6 +86,13 @@ export type RealtimeServerEvent =
       output_index: number;
       content_index: number;
       transcript: string;
+    }
+  | {
+      type: "conversation.item.input_audio_transcription.delta";
+      event_id: string;
+      item_id: string;
+      content_index: number;
+      delta: string;
     }
   | {
       event_id: string;
@@ -117,7 +135,7 @@ export type RealtimeSession = {
   input_audio_format: "pcm16" | "g711_ulaw" | "g711_alaw";
   output_audio_format: "pcm16" | "g711_ulaw" | "g711_alaw";
   input_audio_transcription: {
-    model: "whisper-1";
+    model: "whisper-1" | "gpt-4o-transcribe" | "gpt-4o-mini-transcribe";
   };
   turn_detection: null | {
     type: "server_vad";
@@ -162,7 +180,7 @@ export type RealtimeSessionConfig = {
     type: "near_field" | "far_field";
   } | null;
   input_audio_transcription: {
-    model: string; // e.g., "whisper-1" or "gpt-4o-transcribe"
+    model: "whisper-1" | "gpt-4o-transcribe" | "gpt-4o-mini-transcribe";
     prompt?: string;
     language?: string;
   } | null;
