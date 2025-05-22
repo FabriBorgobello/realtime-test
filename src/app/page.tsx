@@ -15,7 +15,7 @@ export default function Home() {
     events,
   } = useRealtime();
   return (
-    <div className="flex flex-col gap-4 p-4 h-full">
+    <div className="h-screen flex flex-col gap-4 p-4">
       <div className="flex gap-2 justify-between">
         <h1 className="text-2xl font-bold">Realtime Test</h1>
         <p className="p-2 px-4 rounded-md bg-white/10">{status}</p>
@@ -47,9 +47,9 @@ export default function Home() {
           {muted ? "Unmute" : "Mute"}
         </button>
       </div>
-      <div className="flex gap-4 h-full flex-1">
+      <div className="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
         {/* Conversation */}
-        <div className="flex flex-col gap-2 flex-1 border p-6 border-white/20 rounded-xl ">
+        <div className="flex flex-col gap-2 flex-1 border p-6 border-white/20 rounded-xl overflow-hidden">
           <h2 className="text-lg font-semibold">Conversation</h2>
           <hr className="border-white/20" />
           <div className="flex flex-col-reverse overflow-y-auto ">
@@ -72,7 +72,7 @@ export default function Home() {
           </div>
         </div>
         {/* Events */}
-        <div className="flex flex-col gap-2 flex-1 border p-6 border-white/20 rounded-xl">
+        <div className="overflow-hidden flex flex-col gap-2 flex-1 border p-6 border-white/20 rounded-xl">
           <h2 className="text-lg font-semibold">Events</h2>
           <hr className="border-white/20" />
           <div className="flex flex-col-reverse overflow-y-auto ">
