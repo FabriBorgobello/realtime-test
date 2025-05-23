@@ -8,8 +8,7 @@ import {
   RealtimeStatus,
   UIMessage,
 } from "./types";
-
-const SYSTEM_PROMPT = "You are a helpful assistant.";
+import { SYSTEM_PROMPT } from "./prompt";
 
 export function useRealtime() {
   const mediaStream = useRef<MediaStream | null>(null); // Microphone

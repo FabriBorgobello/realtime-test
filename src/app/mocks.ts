@@ -33,6 +33,21 @@ export const useBasket = () => {
     }
   };
 
+  const addMultipleProducts = (products: Product[]) => {
+    products.forEach((product) => {
+      const existingProduct = basket.find((p) => p.name === product.name);
+      if (existingProduct) {
+        setBasket(
+          basket.map((p) =>
+            p.name === product.name ? { ...p, quantity: p.quantity + 1 } : p
+          )
+        );
+      } else {
+        setBasket([...basket, { ...product, quantity: 1 }]);
+      }
+    });
+  };
+
   const removeProduct = (product: Product) => {
     const existingProduct = basket.find((p) => p.name === product.name);
     if (existingProduct) {
@@ -48,6 +63,24 @@ export const useBasket = () => {
     }
   };
 
+  const removeMultipleProducts = (products: Product[]) => {
+    // Delete element or decrement quantity
+    products.forEach((product) => {
+      const existingProduct = basket.find((p) => p.name === product.name);
+      if (existingProduct) {
+        if (existingProduct.quantity === 1) {
+          setBasket(basket.filter((p) => p.name !== product.name));
+        } else {
+          setBasket(
+            basket.map((p) =>
+              p.name === product.name ? { ...p, quantity: p.quantity - 1 } : p
+            )
+          );
+        }
+      }
+    });
+  };
+
   const clearBasket = () => {
     setBasket([]);
   };
@@ -55,6 +88,8 @@ export const useBasket = () => {
   return {
     addProduct,
     removeProduct,
+    addMultipleProducts,
+    removeMultipleProducts,
     basket,
     clearBasket,
   };
