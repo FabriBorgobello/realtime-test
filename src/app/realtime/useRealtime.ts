@@ -199,10 +199,21 @@ export function useRealtime() {
           session: {
             instructions: SYSTEM_PROMPT,
             modalities: ["text", "audio"],
-            input_audio_transcription: { model: "gpt-4o-transcribe" },
+            input_audio_transcription: {
+              model: "gpt-4o-transcribe",
+              prompt:
+                "Expect the user to not be a native English speaker. They may have a heavy accent.",
+            },
             input_audio_noise_reduction: { type: "near_field" },
             tools: [],
             temperature: 0.6,
+            turn_detection: {
+              type: "server_vad",
+              threshold: 0.5,
+              prefix_padding_ms: 100,
+              silence_duration_ms: 1000,
+              create_response: true,
+            },
           },
         };
         dc.send(JSON.stringify(session));
